@@ -1,39 +1,73 @@
 use bevy::prelude::*;
-
+use bevy::window::PrimaryWindow;
+use rand::prelude::*;
 fn main() {
     App::new()
-        .add_systems(Startup, add_people)
-        .add_systems(Update, (hello_world, (update_people, greet_people).chain()))
+        .add_plugins(DefaultPlugins)
+        .add_systems(Startup, spawn_camera)
+        .add_systems(Startup, spawn_player)
         .run();
 }
 
-
-fn hello_world() {
-    println!("hello world!");
-}
+pub const PLAYER_SPEED: f32 = 500.0;
+pub const PLAYER_SIZE: f32 = 64.0; // This is the player sprite size.
+pub const NUMBER_OF_ENEMIES: usize = 4;
 
 #[derive(Component)]
-struct Person;
-#[derive(Component)]
-struct Name(String);
+pub struct Player {}
 
-fn add_people(mut commands: Commands) {
-    commands.spawn((Person, Name("Elaina Proctor".to_string())));
-    commands.spawn((Person, Name("Renzo Hume".to_string())));
-    commands.spawn((Person, Name("Zayna Nieves".to_string())));
+pub fn spawn_player(
+    mut commands: Commands,
+    window_query: Query<&Window, With<PrimaryWindow>>,
+    asset_server: Res<AssetServer>,
+) {
+    let window = window_query.get_single().unwrap();
+
+    commands.spawn((
+        SpriteBundle {
+            // transform gives the location of the ball, texture is the texture with its respective height given to us
+            transform: Transform::from_xyz(window.width() / 2.0, window.height() / 2.0, 0.0),
+            texture: asset_server.load("ball_blue_large.png"),
+            ..default()
+        },
+        // this guy be the player
+        Player {},
+    ));
 }
 
-fn greet_people(query: Query<&Name, With<Person>>) {
-    for name in &query {
-        println!("hello {}!", name.0);
-    }
+pub fn spawn_camera(mut commands: Commands, window_query: Query<&Window, With<PrimaryWindow>>) {
+    let window = window_query.get_single().unwrap();
+    // adding a camera
+    commands.spawn(Camera2dBundle {
+        transform: Transform::from_xyz(window.width() / 2.0, window.height() / 2.0, 0.0),
+        ..default()
+    });
 }
 
-fn update_people(mut query: Query<&mut Name, With<Person>>) {
-    for mut name in &mut query {
-        if name.0 == "Elaina Proctor" {
-            name.0 = "Elaina Hume".to_string();
-            break; // We don’t need to change any other names
+pub fn player_movement(
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+    mut player_query: Query<&mut Transform, With<Player>>,
+    time: Res<Time>,
+) {
+    if let Ok(mut transform) = player_query.get_single_mut() {
+        let mut direction = Vec3::ZERO;
+        if keyboard_input.pressed(KeyCode::ArrowLeft) || keyboard_input.pressed(KeyCode::KeyA) {
+            direction += Vec3::new(-1.0, 0.0, 0.0);
         }
+        if keyboard_input.pressed(KeyCode::ArrowRight) || keyboard_input.pressed(KeyCode::KeyD) {
+            direction += Vec3::new(1.0, 0.0, 0.0);
+        }
+        if keyboard_input.pressed(KeyCode::ArrowUp) || keyboard_input.pressed(KeyCode::KeyW) {
+            direction += Vec3::new(0.0, 1.0, 0.0);
+        }
+        if keyboard_input.pressed(KeyCode::ArrowDown) || keyboard_input.pressed(KeyCode::KeyS) {
+            direction += Vec3::new(0.0, -1.0, 0.0);
+        }
+
+        if direction.length() > 0.0 {
+            direction = direction.normalize();
+        }
+
+        transform.translation += direction * PLAYER_SPEED * time.delta_seconds();
     }
 }
