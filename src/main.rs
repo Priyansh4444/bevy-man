@@ -136,7 +136,6 @@ pub fn player_ledge_edging(
                 .translation
                 .distance(ledge_transform.translation);
             if distance < closest_distance {
-                println!("Distance: {}", distance);
                 closest_distance = distance;
                 closest_ledge_entity = Some(ledge_entity);
                 ledge_position = ledge_transform.translation;
@@ -162,7 +161,7 @@ pub fn player_movement_moving(
         if player.swinging && player.is_attatched_to_ledge {
             let target_position = Vec3::new(player.ledge_x, player.ledge_y, 0.0);
             let direction_to_target = (target_position - transform.translation).normalize();
-            let swing_speed = 100.0; // Speed of the swing can be adjusted
+            let swing_speed = 200.0; // Speed of the swing can be adjusted
 
             // Calculate a simple harmonic motion around the ledge
             player.velocity = direction_to_target
@@ -174,7 +173,7 @@ pub fn player_movement_moving(
             transform.translation += player.velocity * time.delta_seconds();
 
             // Reduce the swing over time
-            player.velocity *= 0.99;
+            player.velocity *= 1.22;
         }
     }
 }

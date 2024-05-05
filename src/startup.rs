@@ -120,7 +120,7 @@ pub fn spawn_pipe(
             sprite: Sprite {
                 custom_size: Some(Vec2::new(
                     PIPE_WIDTH * 2.0,
-                    window.height() - PIPE_HEIGHT * 2.0 - 150.0,
+                    window.height()  - 150.0,
                 )),
                 ..default()
             },
