@@ -30,7 +30,7 @@ fn main() {
 #[derive(Component)]
 pub struct Player {
     is_attatched_to_ledge: bool,
-    ledge_attatched_to: Option<Entity>,
+    ledge_attatched_to: Option<Ledge>,
 }
 
 #[derive(Component)]
@@ -221,10 +221,7 @@ pub fn spawn_ledges(
 
 pub fn player_movement(
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    mut set: ParamSet<(
-        Query<(&mut Transform, &mut Player), With<Player>>,
-        Query<(&Transform, &mut Ledge), With<Ledge>>,
-    )>,
+    mut set: ParamSet<(Query<(&mut Transform, &mut Player), With<Player>>,)>,
     time: Res<Time>,
 ) {
     if let Ok((mut transform, mut player)) = set.p0().get_single_mut() {
@@ -232,6 +229,7 @@ pub fn player_movement(
         direction += Vec3::new(0.0, -1.0, 0.0);
         if keyboard_input.pressed(KeyCode::ArrowLeft) {
             player.is_attatched_to_ledge = true;
+            direction += Vec3::new(0.0, 1.0, 0.0);
         } else {
             player.is_attatched_to_ledge = false;
         }
@@ -240,7 +238,9 @@ pub fn player_movement(
             direction = direction.normalize();
         }
 
-        if player.is_attatched_to_ledge {}
+        if player.is_attatched_to_ledge {
+            direction += Vec3::new(1.0, 0.0, 0.0);
+        }
 
         transform.translation += direction * PLAYER_SPEED * time.delta_seconds();
     }
@@ -250,7 +250,7 @@ pub fn player_ledge_edging(
     mut player_query: Query<(&mut Player, &Transform), With<Player>>, // Include Transform to get player position
     ledges: Query<(Entity, &Ledge, &Transform), With<Ledge>>, // Include Transform and Entity for ledges
 ) {
-    let mut closest_ledge: Option<Entity> = None; // Store the entity ID of the closest ledge
+    let mut closest_ledge: Option<Ledge> = None; // Store the entity ID of the closest ledge
     let mut closest_distance = f32::MAX;
 
     if let Ok((mut player, player_transform)) = player_query.get_single_mut() {
@@ -261,7 +261,7 @@ pub fn player_ledge_edging(
                 .distance(ledge_transform.translation);
             if distance < closest_distance {
                 closest_distance = distance;
-                closest_ledge = Some(ledge_entity);
+                closest_ledge = Some(_ledge.clone());
             }
         }
         player.ledge_attatched_to = closest_ledge;
