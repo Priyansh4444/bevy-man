@@ -1,15 +1,33 @@
-use bevy::prelude::*;
-use bevy::window::PrimaryWindow;
+use bevy::app::{App, Startup, Update};
+use bevy::core_pipeline::core_2d::Camera2d;
+use bevy::ecs::entity::Entity;
+use bevy::ecs::query::{With, Without};
+use bevy::ecs::schedule::IntoSystemConfigs;
+use bevy::ecs::system::*;
+use bevy::input::keyboard::KeyCode;
+use bevy::input::ButtonInput;
+use bevy::math::{Vec2, Vec3}; use bevy::time::Time;
+use bevy::transform::components::Transform;
+// For easier 2D vector operations
 
-pub const PLAYER_SPEED: f32 = 500.0;
+use bevy::DefaultPlugins;
+
+use bevy_xpbd_2d::prelude::*;
+
+mod structs;
+mod startup;
+mod player_movement;
+
+use startup::*;
+use structs::*;
+
+pub const PLAYER_SPEED: f32 = 100.0;
 pub const PLAYER_SIZE: f32 = 64.0; // This is the player sprite size.
-pub const PIPE_SPEED: f32 = 100.0;
-pub const PIPE_WIDTH: f32 = 30.0; // Width of the pipe.
-pub const PIPE_HEIGHT: f32 = 100.0; // Example height of the pipe.
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
+        .insert_resource(Gravity(Vec2::NEG_Y * 100.0))
         .add_systems(Startup, spawn_player)
         .add_systems(Startup, spawn_camera)
         .add_systems(Startup, spawn_pipes)
@@ -17,141 +35,18 @@ fn main() {
         .add_systems(
             Update,
             (
-                player_movement,
+                player_movement_detection,
                 player_ledge_edging,
                 sync_player_camera,
                 update_ledges_information,
             )
                 .chain(),
         )
+        .add_systems(Update, player_movement_moving)
         .run();
 }
 
-#[derive(Component)]
-pub struct Player {
-    is_attatched_to_ledge: bool,
-    ledge_attatched_to: Option<Ledge>,
-}
 
-#[derive(Component)]
-pub struct Pipe {
-    top: bool,
-}
-
-#[derive(Component, Clone)]
-pub struct Ledge {
-    pub distance_from_player: f32,
-    pub id: u32,
-}
-
-pub fn spawn_player(
-    mut commands: Commands,
-    window_query: Query<&Window, With<PrimaryWindow>>,
-    asset_server: Res<AssetServer>,
-) {
-    let window = window_query.get_single().unwrap();
-
-    commands.spawn((
-        SpriteBundle {
-            transform: Transform::from_xyz(window.width() / 2.0, window.height() / 2.0, 0.0),
-            texture: asset_server.load("ball_blue_large.png"),
-            ..default()
-        },
-        Player {
-            is_attatched_to_ledge: false,
-            ledge_attatched_to: None,
-        },
-    ));
-}
-
-pub fn spawn_camera(mut commands: Commands, window_query: Query<&Window, With<PrimaryWindow>>) {
-    let window = window_query.get_single().unwrap();
-
-    commands.spawn(Camera2dBundle {
-        transform: Transform::from_xyz(window.width() / 2.0, window.height() / 2.0, 0.0),
-        ..default()
-    });
-}
-
-pub fn spawn_pipe(
-    commands: &mut Commands,
-    window_query: &Query<&Window, With<PrimaryWindow>>,
-    asset_server: &Res<AssetServer>,
-    x: f32,
-) {
-    let window = window_query.get_single().unwrap();
-    let gap = 150.0; // Gap size between top and bottom pipes
-
-    // Top pipe
-    commands.spawn((
-        SpriteBundle {
-            transform: Transform::from_xyz(
-                x + window.width() / 2.0,
-                window.height() - PIPE_HEIGHT,
-                0.0,
-            ),
-            sprite: Sprite {
-                custom_size: Some(Vec2::new(
-                    PIPE_WIDTH * 2.0,
-                    window.height() - PIPE_HEIGHT * 2.0 - gap,
-                )),
-                ..default()
-            },
-            texture: asset_server.load("pipe.png"),
-            ..default()
-        },
-        Pipe { top: true },
-    ));
-
-    // Bottom pipe
-    commands.spawn((
-        SpriteBundle {
-            transform: Transform::from_xyz(x + window.width() / 2.0, PIPE_HEIGHT, 0.0),
-            sprite: Sprite {
-                custom_size: Some(Vec2::new(
-                    PIPE_WIDTH * 2.0,
-                    window.height() - PIPE_HEIGHT * 2.0 - gap,
-                )),
-                ..default()
-            },
-            texture: asset_server.load("pipe.png"),
-            ..default()
-        },
-        Pipe { top: false },
-    ));
-}
-
-pub fn spawn_ledge(
-    commands: &mut Commands,
-    window_query: &Query<&Window, With<PrimaryWindow>>,
-    asset_server: &Res<AssetServer>,
-    x: f32,
-) {
-    let window = window_query.get_single().unwrap();
-    let _gap = 150.0; // Gap size between top and bottom pipes
-                      // Ledge handle
-    let ledge_height = 100.0;
-    let ledge_width = 100.0;
-    commands.spawn((
-        SpriteBundle {
-            transform: Transform::from_xyz(
-                window.width() / 2.0 + x * 2.0,
-                window.height() - PIPE_HEIGHT - ledge_height,
-                0.0,
-            ),
-            sprite: Sprite {
-                custom_size: Some(Vec2::new(ledge_width, ledge_height)),
-                ..default()
-            },
-            texture: asset_server.load("Smoking_pipe.png"),
-            ..default()
-        },
-        Ledge {
-            distance_from_player: 0.0,
-            id: x as u32,
-        },
-    ));
-}
 
 pub fn sync_player_camera(
     player: Query<&Transform, With<Player>>,
@@ -160,7 +55,7 @@ pub fn sync_player_camera(
     let Ok(player) = player.get_single() else {
         return;
     };
-    let Ok((mut camera, mut camera_transform)) = camera.get_single_mut() else {
+    let Ok((mut _camera, mut camera_transform)) = camera.get_single_mut() else {
         return;
     };
 
@@ -183,43 +78,9 @@ pub fn update_ledges_information(
     }
 }
 
-pub fn spawn_pipes(
-    mut commands: Commands,
-    window_query: Query<&Window, With<PrimaryWindow>>,
-    asset_server: Res<AssetServer>,
-) {
-    let _window = window_query.get_single().unwrap();
-    let _gap = 150.0; // Gap size between top and bottom pipes
-    let count = 4;
-    for i in 0..count {
-        spawn_pipe(
-            &mut commands,
-            &window_query,
-            &asset_server,
-            (i as f32) * 150.0,
-        )
-    }
-}
 
-pub fn spawn_ledges(
-    mut commands: Commands,
-    window_query: Query<&Window, With<PrimaryWindow>>,
-    asset_server: Res<AssetServer>,
-) {
-    let _window = window_query.get_single().unwrap();
-    let _gap = 150.0; // Gap size between top and bottom pipes
-    let count = 4;
-    for i in 0..count {
-        spawn_ledge(
-            &mut commands,
-            &window_query,
-            &asset_server,
-            (i as f32) * 150.0,
-        )
-    }
-}
 
-pub fn player_movement(
+pub fn player_movement_detection(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     mut set: ParamSet<(Query<(&mut Transform, &mut Player), With<Player>>,)>,
     time: Res<Time>,
@@ -229,7 +90,6 @@ pub fn player_movement(
         direction += Vec3::new(0.0, -1.0, 0.0);
         if keyboard_input.pressed(KeyCode::ArrowLeft) {
             player.is_attatched_to_ledge = true;
-            direction += Vec3::new(0.0, 1.0, 0.0);
         } else {
             player.is_attatched_to_ledge = false;
         }
@@ -238,38 +98,66 @@ pub fn player_movement(
             direction = direction.normalize();
         }
 
-        if player.is_attatched_to_ledge {
-            direction += Vec3::new(1.0, 0.0, 0.0);
-        }
-
         transform.translation += direction * PLAYER_SPEED * time.delta_seconds();
     }
 }
 
 pub fn player_ledge_edging(
-    mut player_query: Query<(&mut Player, &Transform), With<Player>>, // Include Transform to get player position
-    ledges: Query<(Entity, &Ledge, &Transform), With<Ledge>>, // Include Transform and Entity for ledges
+    mut player_query: Query<(&mut Player, &Transform), With<Player>>,
+    ledges: Query<(Entity, &Ledge, &Transform), With<Ledge>>,
+    _time: Res<Time>,
 ) {
-    let mut closest_ledge: Option<Ledge> = None; // Store the entity ID of the closest ledge
-    let mut closest_distance = f32::MAX;
-
     if let Ok((mut player, player_transform)) = player_query.get_single_mut() {
+        let mut closest_ledge_entity: Option<Entity> = None;
+        let mut closest_distance = f32::MAX;
+        let mut ledge_position = Vec3::ZERO;
+
         // Calculate distance based on player's position
         for (ledge_entity, _ledge, ledge_transform) in ledges.iter() {
-            let distance = player_transform
-                .translation
-                .distance(ledge_transform.translation);
+            let distance = player_transform.translation.distance(ledge_transform.translation);
             if distance < closest_distance {
+                println!("Distance: {}", distance);
                 closest_distance = distance;
-                closest_ledge = Some(_ledge.clone());
+                closest_ledge_entity = Some(ledge_entity);
+                ledge_position = ledge_transform.translation;
             }
         }
-        player.ledge_attatched_to = closest_ledge;
+
+        // If a closer ledge is found, update the player's attached ledge info
+        if !player.is_attatched_to_ledge {
+            if let Some(ledge_entity) = closest_ledge_entity {
+                player.ledge_attatched_to = Some(ledge_entity);
+                player.ledge_x = ledge_position.x;
+                player.ledge_y = ledge_position.y;
+                player.closest_distance = closest_distance;
+            }
+        }
     }
 }
+pub fn player_movement_moving(
+    mut set: ParamSet<(Query<(&mut Transform, &mut Player, &mut BezierState), With<Player>>,)>,
+    time: Res<Time>,
+) {
+    let mut binding = set.p0();
+    let (mut player_transform, mut player, mut bezier_state) = binding.get_single_mut().unwrap();
 
-#[derive(Component)]
-pub struct Rope {
-    pub ledge_attatched_to: Entity,
-    pub distance_from_ledge: f32,
+    if player.is_attatched_to_ledge {
+        if bezier_state.t < 1.0 {
+            bezier_state.t += time.delta_seconds() * 0.5; // Control the speed of the transition
+            bezier_state.t = bezier_state.t.min(1.0); // Ensure t does not exceed 1
+
+            let new_position = bezier_state.bezier_point();
+            player_transform.translation = new_position;
+        } else {
+            // Update target if needed or finalize movement
+            player.is_attatched_to_ledge = false; // Optionally detach player once movement is complete
+            player.ledge_attatched_to = None; // Clear the attached ledge entity reference
+        }
+    } else {
+        // Initialize Bezier state when player attaches to a ledge
+        let current_position = player_transform.translation;
+        let target_position = Vec3::new(player.ledge_x + 30.0, player.ledge_y, 0.0); // Adjusting according to new position
+        player.is_attatched_to_ledge = true;
+        *bezier_state = BezierState::new(current_position, target_position);
+    }
 }
