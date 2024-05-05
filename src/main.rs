@@ -24,7 +24,7 @@ use structs::*;
 
 pub const PLAYER_SPEED: f32 = 100.0;
 pub const PLAYER_SIZE: f32 = 64.0; // This is the player sprite size.
-
+const GRAVITY: f32 = -50.8;
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
@@ -40,6 +40,7 @@ fn main() {
                 player_ledge_edging,
                 sync_player_camera,
                 update_ledges_information,
+                apply_gravity_and_motion, // Ensure this is part of your update loop
             )
                 .chain(),
         )
@@ -64,6 +65,27 @@ pub fn sync_player_camera(
         camera_transform.translation += delta;
     }
 }
+
+pub fn apply_gravity_and_motion(
+    mut players: Query<(&mut Transform, &mut Player), With<Player>>,
+    time: Res<Time>,
+) {
+    for (mut transform, mut player) in players.iter_mut() {
+        // Apply gravity to vertical velocity if the player is not attached to a ledge
+        if !player.is_attatched_to_ledge {
+            player.velocity.y += GRAVITY * time.delta_seconds();
+        }
+
+        // Update the player's position based on the current velocity
+        transform.translation += player.velocity * time.delta_seconds();
+
+        // Implement damping if swinging to reduce the velocity over time
+        if player.swinging {
+            player.velocity *= 0.99; // Damping factor to gradually reduce the swing
+        }
+    }
+}
+
 pub fn update_ledges_information(
     player: Query<&Transform, With<Player>>,
     mut ledges: Query<(&Transform, &mut Ledge), With<Ledge>>,
@@ -83,28 +105,21 @@ pub fn player_movement_detection(
     time: Res<Time>,
 ) {
     for (mut transform, mut player) in players.iter_mut() {
-        if keyboard_input.pressed(KeyCode::Space)
-            && !player.swinging
-            && !player.is_attatched_to_ledge
-        {
-            // Player starts swinging with an initial push on the x-direction
-            player.is_attatched_to_ledge = true;
-            player.swinging = true;
-            player.initial_swing_velocity = Vec3::new(50.0, 0.0, 0.0); // Small push to start oscillation
-            player.velocity += Vec3::new(50.0, 0.0, 0.0);
+        if keyboard_input.pressed(KeyCode::Space) && !player.swinging {
+            if !player.is_attatched_to_ledge {
+                player.is_attatched_to_ledge = true;
+                player.swinging = true;
+                player.velocity += Vec3::new(50.0, 0.0, 0.0); // Initial push for swinging
+            }
         } else if !keyboard_input.pressed(KeyCode::Space) {
             // Stop swinging when space is not pressed
             player.swinging = false;
             player.is_attatched_to_ledge = false;
             player.ledge_attatched_to = None;
-            player.velocity = Vec3::ZERO;
+            // Only reset x-velocity to keep gravity effect intact
         }
-
-        // Apply the velocity
-        transform.translation += player.velocity * time.delta_seconds();
     }
 }
-
 pub fn player_ledge_edging(
     mut player_query: Query<(&mut Player, &Transform), With<Player>>,
     ledges: Query<(Entity, &Ledge, &Transform), With<Ledge>>,
