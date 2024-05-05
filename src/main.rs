@@ -6,7 +6,8 @@ use bevy::ecs::schedule::IntoSystemConfigs;
 use bevy::ecs::system::*;
 use bevy::input::keyboard::KeyCode;
 use bevy::input::ButtonInput;
-use bevy::math::{Vec2, Vec3}; use bevy::time::Time;
+use bevy::math::{Vec2, Vec3};
+use bevy::time::Time;
 use bevy::transform::components::Transform;
 // For easier 2D vector operations
 
@@ -14,9 +15,9 @@ use bevy::DefaultPlugins;
 
 use bevy_xpbd_2d::prelude::*;
 
-mod structs;
-mod startup;
 mod player_movement;
+mod startup;
+mod structs;
 
 use startup::*;
 use structs::*;
@@ -45,8 +46,6 @@ fn main() {
         .add_systems(Update, player_movement_moving)
         .run();
 }
-
-
 
 pub fn sync_player_camera(
     player: Query<&Transform, With<Player>>,
@@ -78,27 +77,31 @@ pub fn update_ledges_information(
     }
 }
 
-
-
 pub fn player_movement_detection(
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    mut set: ParamSet<(Query<(&mut Transform, &mut Player), With<Player>>,)>,
+    mut players: Query<(&mut Transform, &mut Player), With<Player>>,
     time: Res<Time>,
 ) {
-    if let Ok((mut transform, mut player)) = set.p0().get_single_mut() {
-        let mut direction = Vec3::ZERO;
-        direction += Vec3::new(0.0, -1.0, 0.0);
-        if keyboard_input.pressed(KeyCode::ArrowLeft) {
+    for (mut transform, mut player) in players.iter_mut() {
+        if keyboard_input.pressed(KeyCode::Space)
+            && !player.swinging
+            && !player.is_attatched_to_ledge
+        {
+            // Player starts swinging with an initial push on the x-direction
             player.is_attatched_to_ledge = true;
-        } else {
+            player.swinging = true;
+            player.initial_swing_velocity = Vec3::new(50.0, 0.0, 0.0); // Small push to start oscillation
+            player.velocity += Vec3::new(50.0, 0.0, 0.0);
+        } else if !keyboard_input.pressed(KeyCode::Space) {
+            // Stop swinging when space is not pressed
+            player.swinging = false;
             player.is_attatched_to_ledge = false;
+            player.ledge_attatched_to = None;
+            player.velocity = Vec3::ZERO;
         }
 
-        if direction.length() > 0.0 {
-            direction = direction.normalize();
-        }
-
-        transform.translation += direction * PLAYER_SPEED * time.delta_seconds();
+        // Apply the velocity
+        transform.translation += player.velocity * time.delta_seconds();
     }
 }
 
@@ -114,7 +117,9 @@ pub fn player_ledge_edging(
 
         // Calculate distance based on player's position
         for (ledge_entity, _ledge, ledge_transform) in ledges.iter() {
-            let distance = player_transform.translation.distance(ledge_transform.translation);
+            let distance = player_transform
+                .translation
+                .distance(ledge_transform.translation);
             if distance < closest_distance {
                 println!("Distance: {}", distance);
                 closest_distance = distance;
@@ -135,29 +140,26 @@ pub fn player_ledge_edging(
     }
 }
 pub fn player_movement_moving(
-    mut set: ParamSet<(Query<(&mut Transform, &mut Player, &mut BezierState), With<Player>>,)>,
+    mut players: Query<(&mut Transform, &mut Player), With<Player>>,
     time: Res<Time>,
 ) {
-    let mut binding = set.p0();
-    let (mut player_transform, mut player, mut bezier_state) = binding.get_single_mut().unwrap();
+    for (mut transform, mut player) in players.iter_mut() {
+        if player.swinging && player.is_attatched_to_ledge {
+            let target_position = Vec3::new(player.ledge_x, player.ledge_y, 0.0);
+            let direction_to_target = (target_position - transform.translation).normalize();
+            let swing_speed = 100.0; // Speed of the swing can be adjusted
 
-    if player.is_attatched_to_ledge {
-        if bezier_state.t < 1.0 {
-            bezier_state.t += time.delta_seconds() * 0.5; // Control the speed of the transition
-            bezier_state.t = bezier_state.t.min(1.0); // Ensure t does not exceed 1
+            // Calculate a simple harmonic motion around the ledge
+            player.velocity = direction_to_target
+                .cross(Vec3::new(0.0, 0.0, 1.0))
+                .normalize()
+                * swing_speed;
 
-            let new_position = bezier_state.bezier_point();
-            player_transform.translation = new_position;
-        } else {
-            // Update target if needed or finalize movement
-            player.is_attatched_to_ledge = false; // Optionally detach player once movement is complete
-            player.ledge_attatched_to = None; // Clear the attached ledge entity reference
+            // Apply swinging motion
+            transform.translation += player.velocity * time.delta_seconds();
+
+            // Reduce the swing over time
+            player.velocity *= 0.99;
         }
-    } else {
-        // Initialize Bezier state when player attaches to a ledge
-        let current_position = player_transform.translation;
-        let target_position = Vec3::new(player.ledge_x + 30.0, player.ledge_y, 0.0); // Adjusting according to new position
-        player.is_attatched_to_ledge = true;
-        *bezier_state = BezierState::new(current_position, target_position);
     }
 }

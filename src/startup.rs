@@ -44,13 +44,9 @@ pub fn spawn_player(
             ledge_x: 0.0,
             closest_distance: f32::MAX,
             ledge_y: 0.0,
-        },
-        BezierState {
-            start: Vec3::ZERO,
-            control_point_1: Vec3::ZERO,
-            control_point_2: Vec3::ZERO,
-            end: Vec3::ZERO,
-            t: 1.0, // Start with t as 1 to indicate it's not currently in motion
+            velocity: Vec3::ZERO,
+            swinging: false,
+            initial_swing_velocity: Vec3::ZERO,
         },
     ));
 }
