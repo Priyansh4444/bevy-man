@@ -16,7 +16,6 @@ use bevy::ui::update;
 use bevy::window::{PrimaryWindow, Window};
 use bevy::DefaultPlugins;
 
-use bevy_xpbd_2d::prelude::*;
 
 mod player_movement;
 mod startup;
@@ -31,7 +30,6 @@ const GRAVITY: f32 = -50.8;
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
-        .insert_resource(Gravity(Vec2::NEG_Y * 100.0))
         .add_systems(
             Startup,
             (spawn_player, spawn_ledges, spawn_pipes, spawn_rope).chain(),
