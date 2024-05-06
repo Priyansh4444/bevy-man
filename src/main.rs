@@ -73,15 +73,10 @@ pub fn apply_gravity_and_motion(
 ) {
     for (mut transform, mut player) in players.iter_mut() {
         // Apply gravity to vertical velocity if the player is not attached to a ledge
-
-        player.velocity.y += GRAVITY * time.delta_seconds();
-
-        // Update the player's position based on the current velocity
-        transform.translation += player.velocity * time.delta_seconds();
-
-        // Implement damping if swinging to reduce the velocity over time
-        if player.swinging {
-            player.velocity *= 0.78; // Damping factor to gradually reduce the swing
+        if !player.is_attatched_to_ledge {
+            player.velocity.y += GRAVITY * time.delta_seconds();
+            // Update the player's position based on the current velocity
+            transform.translation += player.velocity * time.delta_seconds();
         }
     }
 }
@@ -101,23 +96,30 @@ pub fn update_ledges_information(
 
 pub fn player_movement_detection(
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    mut players: Query<&mut Player, With<Player>>,
+    mut players: Query<(&mut Player, &Transform), With<Player>>,
     mut rope: Query<&mut Visibility, With<Rope>>,
     time: Res<Time>,
 ) {
     let _ = time;
     let mut rope_vis = rope.get_single_mut().unwrap();
-    if let Ok(mut player) = players.get_single_mut() {
+    if let Ok((mut player, transform)) = players.get_single_mut() {
         if keyboard_input.pressed(KeyCode::Space) && !player.swinging {
             if !player.is_attatched_to_ledge {
                 player.is_attatched_to_ledge = true;
                 *rope_vis = Visibility::Visible;
                 player.swinging = true;
-                // player.velocity += Vec3::new(50.0, 0.0, 0.0); // Initial push for swinging
+                let player_x = transform.translation.x;
+                let ledge_x = player.ledge_x;
+                if ledge_x > player_x {
+                    player.velocity += Vec3::new(15.0, -15.0, 0.0);
+                } else {
+                    player.velocity += Vec3::new(-15.0, -15.0, 0.0);
+                }
             }
         } else if !keyboard_input.pressed(KeyCode::Space) {
             // Stop swinging when space is not pressed
             player.swinging = false;
+            player.energy = 1.0;
             *rope_vis = Visibility::Hidden;
             player.is_attatched_to_ledge = false;
             player.ledge_attatched_to = None;
@@ -175,16 +177,18 @@ pub fn player_movement_moving(
         if player.swinging && player.is_attatched_to_ledge {
             let target_position = Vec3::new(player.ledge_x, player.ledge_y, 0.0);
             let direction_to_target = (target_position - transform.translation).normalize();
-            let swing_speed = 200.0; // Speed of the swing can be adjusted
+            let direction_angle = direction_to_target.y.atan2(direction_to_target.x);
+            //  cx​=ay​⋅bz​−az​⋅by​
+            // direction_to_target.cross(Vec3::new(0.0, 0.0, 2.0))
+            // cy=az⋅bx−ax⋅bz
 
-            player.velocity = direction_to_target
-                .cross(Vec3::new(0.0, 0.0, 1.0))
-                .normalize()
-                * swing_speed;
-
-            // Apply swinging motion
+            // Vec3::new(direction_angle.cos(), direction_angle.sin(), 0.0)
+            // * time.delta_seconds()
+            // * 200.0;
+            // I like this elastic variation ^^
             transform.translation += (player.velocity) * time.delta_seconds();
-            // Reduce the swing over time
+            let new_v = Vec3::new(direction_angle.cos() * 2.5, direction_angle.sin() * 1.6, 0.0);
+            player.velocity += new_v - Vec3::new(0.0, 0.2, 0.0);
         }
     }
 }

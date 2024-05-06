@@ -12,7 +12,7 @@ pub struct Player {
     pub ledge_y: f32,
     pub velocity: Vec3,
     pub swinging: bool, // Flag to indicate if the player is currently swinging
-    pub initial_swing_velocity: Vec3, // Initial push when starting to swing
+    pub angular_velocity: f32, // Initial push when starting to swing
     pub energy: f32, // Energy to swing
 }
 

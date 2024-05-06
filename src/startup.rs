@@ -45,7 +45,7 @@ pub fn spawn_player(
             ledge_y: 0.0,
             velocity: Vec3::ZERO,
             swinging: false,
-            initial_swing_velocity: Vec3::ZERO,
+            angular_velocity: 0.0,
             energy: 0.0,
         },
     ));
