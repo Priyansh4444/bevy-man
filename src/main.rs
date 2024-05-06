@@ -187,8 +187,8 @@ pub fn player_movement_moving(
             // * 200.0;
             // I like this elastic variation ^^
             transform.translation += (player.velocity) * time.delta_seconds();
-            let new_v = Vec3::new(direction_angle.cos() * 2.5, direction_angle.sin() * 2.5, 0.0);
-            player.velocity += new_v - Vec3::new(0.0, 0.2, 0.0);
+            let new_v = Vec3::new(direction_angle.cos() * 2.9, direction_angle.sin() * 2.9, 0.0);
+            player.velocity += new_v - Vec3::new(0.0, 0.4, 0.0);
         }
     }
 }
