@@ -175,7 +175,7 @@ pub fn spawn_rope(
                     transform: Transform::from_xyz(
                         window.width() / 2.0,
                         window.height() / 2.0,
-                        0.0,
+                        -1.0,
                     ),
                     sprite: Sprite {
                         color: Color::rgb(1.0, 0.01, 0.0),         // Corrected color values

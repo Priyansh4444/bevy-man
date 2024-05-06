@@ -155,7 +155,7 @@ pub fn player_ledge_edging(
         if let Ok((mut rope, mut visibility)) = rope_query.get_single_mut() {
             rope.start = player_transform.translation;
             rope.end = player.ledge_attatched_to.map_or(ledge_position, |e| {
-                ledges  
+                ledges
                     .get(e)
                     .map(|(_e, _l, t)| t.translation)
                     .unwrap_or(ledge_position)
@@ -202,8 +202,10 @@ fn update_rope(mut query: Query<(&Rope, &mut Transform, &Visibility)>) {
     if let Ok((rope, mut transform, visibility)) = query.get_single_mut() {
         if *visibility == Visibility::Visible {
             transform.translation = (rope.start + rope.end) / 2.0;
-            transform.rotation =
-                Quat::from_rotation_z((rope.end - rope.start).y.atan2((rope.end - rope.start).x)+std::f32::consts::PI/2.0);
+            transform.rotation = Quat::from_rotation_z(
+                (rope.end - rope.start).y.atan2((rope.end - rope.start).x)
+                    + std::f32::consts::PI / 2.0,
+            );
             transform.scale = Vec3::new(0.5, (rope.end - rope.start).length() / 100.0, 1.0);
         }
     }
