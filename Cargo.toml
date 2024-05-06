@@ -8,4 +8,5 @@ edition = "2021"
 [dependencies]
 bevy = "0.13.2"
 bevy_xpbd_2d = "0.4.2"
+lyon = "1.0.1"
 rand = "0.8.5"

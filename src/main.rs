@@ -6,11 +6,14 @@ use bevy::ecs::schedule::IntoSystemConfigs;
 use bevy::ecs::system::*;
 use bevy::input::keyboard::KeyCode;
 use bevy::input::ButtonInput;
-use bevy::math::{Vec2, Vec3};
+use bevy::math::{Quat, Vec2, Vec3};
+use bevy::render::view::{visibility, window, Visibility};
 use bevy::time::Time;
 use bevy::transform::components::Transform;
 // For easier 2D vector operations
 
+use bevy::ui::update;
+use bevy::window::{PrimaryWindow, Window};
 use bevy::DefaultPlugins;
 
 use bevy_xpbd_2d::prelude::*;
@@ -29,10 +32,11 @@ fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .insert_resource(Gravity(Vec2::NEG_Y * 100.0))
-        .add_systems(Startup, spawn_player)
+        .add_systems(
+            Startup,
+            (spawn_player, spawn_ledges, spawn_pipes, spawn_rope).chain(),
+        )
         .add_systems(Startup, spawn_camera)
-        .add_systems(Startup, spawn_pipes)
-        .add_systems(Startup, spawn_ledges) // Spawn pipes every 2 seconds
         .add_systems(
             Update,
             (
@@ -40,7 +44,8 @@ fn main() {
                 player_ledge_edging,
                 sync_player_camera,
                 update_ledges_information,
-                apply_gravity_and_motion, // Ensure this is part of your update loop
+                apply_gravity_and_motion,
+                // attach_rope,
             )
                 .chain(),
         )
@@ -60,6 +65,7 @@ pub fn sync_player_camera(
     };
 
     let delta = player.translation - camera_transform.translation;
+    let delta = Vec3::new(delta.x, delta.y * 0.01, 0.0);
 
     if delta != Vec3::ZERO {
         camera_transform.translation += delta;
@@ -81,7 +87,7 @@ pub fn apply_gravity_and_motion(
 
         // Implement damping if swinging to reduce the velocity over time
         if player.swinging {
-            player.velocity *= 0.99; // Damping factor to gradually reduce the swing
+            player.velocity *= 0.78; // Damping factor to gradually reduce the swing
         }
     }
 }
@@ -101,21 +107,27 @@ pub fn update_ledges_information(
 
 pub fn player_movement_detection(
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    mut players: Query<(&mut Transform, &mut Player), With<Player>>,
+    mut players: Query<&mut Player, With<Player>>,
+    mut rope: Query<(&mut Rope, &mut Visibility), With<Rope>>,
     time: Res<Time>,
 ) {
-    for (mut transform, mut player) in players.iter_mut() {
+    let _ = time;
+    let (mut rope, mut rope_vis) = rope.get_single_mut().unwrap();
+    if let Ok(mut player) = players.get_single_mut() {
         if keyboard_input.pressed(KeyCode::Space) && !player.swinging {
             if !player.is_attatched_to_ledge {
                 player.is_attatched_to_ledge = true;
+                *rope_vis = Visibility::Visible;
                 player.swinging = true;
                 player.velocity += Vec3::new(50.0, 0.0, 0.0); // Initial push for swinging
             }
         } else if !keyboard_input.pressed(KeyCode::Space) {
             // Stop swinging when space is not pressed
             player.swinging = false;
+            *rope_vis = Visibility::Hidden;
             player.is_attatched_to_ledge = false;
             player.ledge_attatched_to = None;
+
             // Only reset x-velocity to keep gravity effect intact
         }
     }
@@ -123,7 +135,7 @@ pub fn player_movement_detection(
 pub fn player_ledge_edging(
     mut player_query: Query<(&mut Player, &Transform), With<Player>>,
     ledges: Query<(Entity, &Ledge, &Transform), With<Ledge>>,
-    _time: Res<Time>,
+    mut rope_query: Query<(&mut Rope, &mut Visibility), With<Rope>>,
 ) {
     if let Ok((mut player, player_transform)) = player_query.get_single_mut() {
         let mut closest_ledge_entity: Option<Entity> = None;
@@ -146,6 +158,11 @@ pub fn player_ledge_edging(
         if !player.is_attatched_to_ledge {
             if let Some(ledge_entity) = closest_ledge_entity {
                 player.ledge_attatched_to = Some(ledge_entity);
+                if let Ok((mut rope, mut visibility)) = rope_query.get_single_mut() {
+                    *visibility = Visibility::Visible;
+                    rope.start = player_transform.translation;
+                    rope.end = ledge_position;
+                }
                 player.ledge_x = ledge_position.x;
                 player.ledge_y = ledge_position.y;
                 player.closest_distance = closest_distance;
@@ -170,10 +187,10 @@ pub fn player_movement_moving(
                 * swing_speed;
 
             // Apply swinging motion
+            player.velocity *= 1.22;
             transform.translation += player.velocity * time.delta_seconds();
 
             // Reduce the swing over time
-            player.velocity *= 1.22;
         }
     }
 }

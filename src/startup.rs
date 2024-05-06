@@ -1,9 +1,9 @@
 use bevy::prelude::*;
+use bevy::render::mesh::PrimitiveTopology;
 use bevy::window::PrimaryWindow;
 use bevy::{ecs::system::Commands, sprite::SpriteBundle, transform::components::Transform};
 
 use crate::structs::*;
-
 pub const PIPE_WIDTH: f32 = 30.0; // Width of the pipe.
 pub const PIPE_HEIGHT: f32 = 100.0; // Example height of the pipe.
 
@@ -118,10 +118,7 @@ pub fn spawn_pipe(
         SpriteBundle {
             transform: Transform::from_translation(top_pipe_position),
             sprite: Sprite {
-                custom_size: Some(Vec2::new(
-                    PIPE_WIDTH * 2.0,
-                    window.height()  - 150.0,
-                )),
+                custom_size: Some(Vec2::new(PIPE_WIDTH * 2.0, window.height() - 150.0)),
                 ..default()
             },
             texture: asset_server.load("pipe.png"),
@@ -161,4 +158,45 @@ pub fn spawn_camera(mut commands: Commands, window_query: Query<&Window, With<Pr
         transform: Transform::from_xyz(window.width() / 2.0, window.height() / 2.0, 0.0),
         ..default()
     });
+}
+
+pub fn spawn_rope(
+    mut commands: Commands,
+    player_query: Query<&Transform, With<Player>>,
+    window_query: Query<&Window, With<PrimaryWindow>>,
+    ledge_query: Query<&Transform, With<Ledge>>,
+    asset_server: Res<AssetServer>,
+) {
+    let window: &Window = window_query.get_single().unwrap();
+    print!("Spawning rope");
+    print!("Player query: {:?}", player_query.get_single());
+    if let Ok(player_transform) = player_query.get_single() {
+        println!("Player transform: {:?}", player_transform);
+        println!("Ledge query: {:?}", ledge_query.get_single());
+        if let Some(ledge_transform) = ledge_query.iter().next() {
+            commands.spawn((
+                SpriteBundle {
+                    transform: Transform::from_xyz(
+                        window.width() / 2.0,
+                        window.height() / 2.0,
+                        0.0,
+                    ),
+                    sprite: Sprite {
+                        color: Color::rgb(1.0, 0.01, 0.0), // Corrected color values
+                        custom_size: Some(Vec2::new(20.0, 100.0)), // Example size, adjust as needed
+                        ..default()
+                    },
+                    visibility: Visibility::Hidden,
+                    texture: asset_server.load("pipe.png"),
+                    ..default()
+                },
+                Rope {
+                    start: player_transform.translation,
+                    end: ledge_transform.translation,
+                    visibility: false,
+                },
+            ));
+            println!("Rope spawned");
+        }
+    }
 }

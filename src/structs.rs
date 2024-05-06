@@ -1,4 +1,7 @@
-use bevy::{ecs::{component::Component, entity::Entity}, math::Vec3};
+use bevy::{
+    ecs::{component::Component, entity::Entity},
+    math::Vec3,
+};
 
 #[derive(Component)]
 pub struct Player {
@@ -25,3 +28,9 @@ pub struct Ledge {
     pub position: Vec3,
 }
 
+#[derive(Component)]
+pub struct Rope {
+    pub start: Vec3,
+    pub end: Vec3,
+    pub visibility: bool, // Holds entities representing each segment of the rope
+}
