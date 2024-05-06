@@ -32,5 +32,4 @@ pub struct Ledge {
 pub struct Rope {
     pub start: Vec3,
     pub end: Vec3,
-    pub visibility: bool, // Holds entities representing each segment of the rope
 }

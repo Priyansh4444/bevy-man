@@ -168,11 +168,7 @@ pub fn spawn_rope(
     asset_server: Res<AssetServer>,
 ) {
     let window: &Window = window_query.get_single().unwrap();
-    print!("Spawning rope");
-    print!("Player query: {:?}", player_query.get_single());
     if let Ok(player_transform) = player_query.get_single() {
-        println!("Player transform: {:?}", player_transform);
-        println!("Ledge query: {:?}", ledge_query.get_single());
         if let Some(ledge_transform) = ledge_query.iter().next() {
             commands.spawn((
                 SpriteBundle {
@@ -182,7 +178,7 @@ pub fn spawn_rope(
                         0.0,
                     ),
                     sprite: Sprite {
-                        color: Color::rgb(1.0, 0.01, 0.0), // Corrected color values
+                        color: Color::rgb(1.0, 0.01, 0.0),         // Corrected color values
                         custom_size: Some(Vec2::new(20.0, 100.0)), // Example size, adjust as needed
                         ..default()
                     },
@@ -193,10 +189,8 @@ pub fn spawn_rope(
                 Rope {
                     start: player_transform.translation,
                     end: ledge_transform.translation,
-                    visibility: false,
                 },
             ));
-            println!("Rope spawned");
         }
     }
 }

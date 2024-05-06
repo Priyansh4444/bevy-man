@@ -127,7 +127,6 @@ pub fn player_movement_detection(
             *rope_vis = Visibility::Hidden;
             player.is_attatched_to_ledge = false;
             player.ledge_attatched_to = None;
-
             // Only reset x-velocity to keep gravity effect intact
         }
     }
@@ -159,7 +158,6 @@ pub fn player_ledge_edging(
             if let Some(ledge_entity) = closest_ledge_entity {
                 player.ledge_attatched_to = Some(ledge_entity);
                 if let Ok((mut rope, mut visibility)) = rope_query.get_single_mut() {
-                    *visibility = Visibility::Visible;
                     rope.start = player_transform.translation;
                     rope.end = ledge_position;
                 }
@@ -174,7 +172,7 @@ pub fn player_movement_moving(
     mut players: Query<(&mut Transform, &mut Player), With<Player>>,
     time: Res<Time>,
 ) {
-    for (mut transform, mut player) in players.iter_mut() {
+    if let Ok((mut transform, mut player)) = players.get_single_mut() {
         if player.swinging && player.is_attatched_to_ledge {
             let target_position = Vec3::new(player.ledge_x, player.ledge_y, 0.0);
             let direction_to_target = (target_position - transform.translation).normalize();
