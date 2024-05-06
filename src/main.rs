@@ -45,11 +45,11 @@ fn main() {
                 sync_player_camera,
                 update_ledges_information,
                 apply_gravity_and_motion,
-                // attach_rope,
             )
                 .chain(),
         )
         .add_systems(Update, player_movement_moving)
+        .add_systems(Update, update_rope)
         .run();
 }
 
@@ -152,15 +152,20 @@ pub fn player_ledge_edging(
                 ledge_position = ledge_transform.translation;
             }
         }
+        if let Ok((mut rope, mut visibility)) = rope_query.get_single_mut() {
+            rope.start = player_transform.translation;
+            rope.end = player.ledge_attatched_to.map_or(ledge_position, |e| {
+                ledges  
+                    .get(e)
+                    .map(|(_e, _l, t)| t.translation)
+                    .unwrap_or(ledge_position)
+            });
+        }
 
         // If a closer ledge is found, update the player's attached ledge info
         if !player.is_attatched_to_ledge {
             if let Some(ledge_entity) = closest_ledge_entity {
                 player.ledge_attatched_to = Some(ledge_entity);
-                if let Ok((mut rope, mut visibility)) = rope_query.get_single_mut() {
-                    rope.start = player_transform.translation;
-                    rope.end = ledge_position;
-                }
                 player.ledge_x = ledge_position.x;
                 player.ledge_y = ledge_position.y;
                 player.closest_distance = closest_distance;
@@ -189,6 +194,17 @@ pub fn player_movement_moving(
             transform.translation += player.velocity * time.delta_seconds();
 
             // Reduce the swing over time
+        }
+    }
+}
+
+fn update_rope(mut query: Query<(&Rope, &mut Transform, &Visibility)>) {
+    if let Ok((rope, mut transform, visibility)) = query.get_single_mut() {
+        if *visibility == Visibility::Visible {
+            transform.translation = (rope.start + rope.end) / 2.0;
+            transform.rotation =
+                Quat::from_rotation_z((rope.end - rope.start).y.atan2((rope.end - rope.start).x)+std::f32::consts::PI/2.0);
+            transform.scale = Vec3::new(0.5, (rope.end - rope.start).length() / 100.0, 1.0);
         }
     }
 }
