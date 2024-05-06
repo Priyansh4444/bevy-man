@@ -13,6 +13,7 @@ pub struct Player {
     pub velocity: Vec3,
     pub swinging: bool, // Flag to indicate if the player is currently swinging
     pub initial_swing_velocity: Vec3, // Initial push when starting to swing
+    pub energy: f32, // Energy to swing
 }
 
 #[derive(Component)]

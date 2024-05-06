@@ -6,16 +6,13 @@ use bevy::ecs::schedule::IntoSystemConfigs;
 use bevy::ecs::system::*;
 use bevy::input::keyboard::KeyCode;
 use bevy::input::ButtonInput;
-use bevy::math::{Quat, Vec2, Vec3};
-use bevy::render::view::{visibility, window, Visibility};
+use bevy::math::{Quat, Vec3};
+use bevy::render::view::Visibility;
 use bevy::time::Time;
 use bevy::transform::components::Transform;
 // For easier 2D vector operations
 
-use bevy::ui::update;
-use bevy::window::{PrimaryWindow, Window};
 use bevy::DefaultPlugins;
-
 
 mod player_movement;
 mod startup;
@@ -24,9 +21,9 @@ mod structs;
 use startup::*;
 use structs::*;
 
-pub const PLAYER_SPEED: f32 = 100.0;
+pub const PLAYER_SPEED: f32 = 200.0;
 pub const PLAYER_SIZE: f32 = 64.0; // This is the player sprite size.
-const GRAVITY: f32 = -50.8;
+const GRAVITY: f32 = -200.8;
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
@@ -76,9 +73,8 @@ pub fn apply_gravity_and_motion(
 ) {
     for (mut transform, mut player) in players.iter_mut() {
         // Apply gravity to vertical velocity if the player is not attached to a ledge
-        if !player.is_attatched_to_ledge {
-            player.velocity.y += GRAVITY * time.delta_seconds();
-        }
+
+        player.velocity.y += GRAVITY * time.delta_seconds();
 
         // Update the player's position based on the current velocity
         transform.translation += player.velocity * time.delta_seconds();
@@ -106,18 +102,18 @@ pub fn update_ledges_information(
 pub fn player_movement_detection(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     mut players: Query<&mut Player, With<Player>>,
-    mut rope: Query<(&mut Rope, &mut Visibility), With<Rope>>,
+    mut rope: Query<&mut Visibility, With<Rope>>,
     time: Res<Time>,
 ) {
     let _ = time;
-    let (mut rope, mut rope_vis) = rope.get_single_mut().unwrap();
+    let mut rope_vis = rope.get_single_mut().unwrap();
     if let Ok(mut player) = players.get_single_mut() {
         if keyboard_input.pressed(KeyCode::Space) && !player.swinging {
             if !player.is_attatched_to_ledge {
                 player.is_attatched_to_ledge = true;
                 *rope_vis = Visibility::Visible;
                 player.swinging = true;
-                player.velocity += Vec3::new(50.0, 0.0, 0.0); // Initial push for swinging
+                // player.velocity += Vec3::new(50.0, 0.0, 0.0); // Initial push for swinging
             }
         } else if !keyboard_input.pressed(KeyCode::Space) {
             // Stop swinging when space is not pressed
@@ -132,7 +128,7 @@ pub fn player_movement_detection(
 pub fn player_ledge_edging(
     mut player_query: Query<(&mut Player, &Transform), With<Player>>,
     ledges: Query<(Entity, &Ledge, &Transform), With<Ledge>>,
-    mut rope_query: Query<(&mut Rope, &mut Visibility), With<Rope>>,
+    mut rope_query: Query<&mut Rope, With<Rope>>,
 ) {
     if let Ok((mut player, player_transform)) = player_query.get_single_mut() {
         let mut closest_ledge_entity: Option<Entity> = None;
@@ -150,7 +146,7 @@ pub fn player_ledge_edging(
                 ledge_position = ledge_transform.translation;
             }
         }
-        if let Ok((mut rope, mut visibility)) = rope_query.get_single_mut() {
+        if let Ok(mut rope) = rope_query.get_single_mut() {
             rope.start = player_transform.translation;
             rope.end = player.ledge_attatched_to.map_or(ledge_position, |e| {
                 ledges
@@ -181,16 +177,13 @@ pub fn player_movement_moving(
             let direction_to_target = (target_position - transform.translation).normalize();
             let swing_speed = 200.0; // Speed of the swing can be adjusted
 
-            // Calculate a simple harmonic motion around the ledge
             player.velocity = direction_to_target
                 .cross(Vec3::new(0.0, 0.0, 1.0))
                 .normalize()
                 * swing_speed;
 
             // Apply swinging motion
-            player.velocity *= 1.22;
-            transform.translation += player.velocity * time.delta_seconds();
-
+            transform.translation += (player.velocity) * time.delta_seconds();
             // Reduce the swing over time
         }
     }

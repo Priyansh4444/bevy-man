@@ -1,5 +1,4 @@
 use bevy::prelude::*;
-use bevy::render::mesh::PrimitiveTopology;
 use bevy::window::PrimaryWindow;
 use bevy::{ecs::system::Commands, sprite::SpriteBundle, transform::components::Transform};
 
@@ -47,6 +46,7 @@ pub fn spawn_player(
             velocity: Vec3::ZERO,
             swinging: false,
             initial_swing_velocity: Vec3::ZERO,
+            energy: 0.0,
         },
     ));
 }
