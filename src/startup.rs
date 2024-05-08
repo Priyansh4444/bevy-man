@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 use bevy::{ecs::system::Commands, sprite::SpriteBundle, transform::components::Transform};
+use rand::{thread_rng, Rng};
 
 use crate::structs::*;
 pub const PIPE_WIDTH: f32 = 30.0; // Width of the pipe.
@@ -46,7 +47,6 @@ pub fn spawn_player(
             velocity: Vec3::ZERO,
             swinging: false,
             angular_velocity: 0.0,
-            energy: 0.0,
         },
     ));
 }
@@ -81,23 +81,85 @@ pub fn spawn_ledge(
         },
     ));
 }
-
+pub const BORDER_THICKNESS: f32 = 10.0; // Thickness of the border walls
 pub fn spawn_pipes(
     mut commands: Commands,
     window_query: Query<&Window, With<PrimaryWindow>>,
     asset_server: Res<AssetServer>,
 ) {
-    let _window = window_query.get_single().unwrap();
-    let _gap = 150.0; // Gap size between top and bottom pipes
-    let count = 4;
-    for i in 0..count {
-        spawn_pipe(
-            &mut commands,
-            &window_query,
-            &asset_server,
-            (i as f32) * 150.0,
-        )
+    let window = window_query.get_single().unwrap();
+    let mut rng = thread_rng();
+    let mut x_position = 150.0; // Initial offset
+
+    // Loop to spawn multiple pipes with random gaps
+    for _ in 0..5 {
+        let gap = rng.gen_range(150.0..300.0); // Random gap between pipes
+        x_position += gap; // Increment x position by gap
+
+        // Top pipe
+        commands.spawn((
+            SpriteBundle {
+                transform: Transform::from_translation(Vec3::new(
+                    x_position,
+                    window.height() - PIPE_HEIGHT,
+                    0.0,
+                )),
+                sprite: Sprite {
+                    custom_size: Some(Vec2::new(PIPE_WIDTH * 2.0, PIPE_HEIGHT)),
+                    ..default()
+                },
+                texture: asset_server.load("pipe.png"),
+                ..default()
+            },
+            Pipe {
+                top: true,
+                position: Vec3::new(x_position, window.height() - PIPE_HEIGHT, 0.0),
+            },
+        ));
+
+        // Bottom pipe
+        commands.spawn((
+            SpriteBundle {
+                transform: Transform::from_translation(Vec3::new(x_position, 0.0, 0.0)),
+                sprite: Sprite {
+                    custom_size: Some(Vec2::new(PIPE_WIDTH * 2.0, PIPE_HEIGHT)),
+                    ..default()
+                },
+                texture: asset_server.load("pipe.png"),
+                ..default()
+            },
+            Pipe {
+                top: false,
+                position: Vec3::new(x_position, 0.0, 0.0),
+            },
+        ));
     }
+}
+
+pub fn spawn_borders(mut commands: Commands, window_query: Query<&Window, With<PrimaryWindow>>) {
+    let window = window_query.get_single().unwrap();
+
+    // Top border
+    commands.spawn((SpriteBundle {
+        transform: Transform::from_xyz(window.width() / 2.0, window.height(), 0.0),
+        sprite: Sprite {
+            custom_size: Some(Vec2::new(window.width(), BORDER_THICKNESS)),
+            color: Color::BLACK,
+            ..default()
+        },
+        ..default()
+    },));
+
+    // Bottom border
+    commands.spawn((SpriteBundle {
+        transform: Transform::from_xyz(window.width() / 2.0, 0.0, 0.0),
+        sprite: Sprite {
+            custom_size: Some(Vec2::new(window.width(), BORDER_THICKNESS)),
+            color: Color::BLACK,
+            ..default()
+        },
+        ..default()
+    },));
 }
 
 pub fn spawn_pipe(

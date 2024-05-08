@@ -11,7 +11,6 @@ use bevy::render::view::Visibility;
 use bevy::time::Time;
 use bevy::transform::components::Transform;
 // For easier 2D vector operations
-
 use bevy::DefaultPlugins;
 
 mod player_movement;
@@ -29,7 +28,14 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_systems(
             Startup,
-            (spawn_player, spawn_ledges, spawn_pipes, spawn_rope).chain(),
+            (
+                spawn_player,
+                spawn_ledges,
+                spawn_pipes,
+                spawn_rope,
+                spawn_borders,
+            )
+                .chain(),
         )
         .add_systems(Startup, spawn_camera)
         .add_systems(
@@ -119,7 +125,6 @@ pub fn player_movement_detection(
         } else if !keyboard_input.pressed(KeyCode::Space) {
             // Stop swinging when space is not pressed
             player.swinging = false;
-            player.energy = 1.0;
             *rope_vis = Visibility::Hidden;
             player.is_attatched_to_ledge = false;
             player.ledge_attatched_to = None;
@@ -187,7 +192,11 @@ pub fn player_movement_moving(
             // * 200.0;
             // I like this elastic variation ^^
             transform.translation += (player.velocity) * time.delta_seconds();
-            let new_v = Vec3::new(direction_angle.cos() * 2.9, direction_angle.sin() * 2.9, 0.0);
+            let new_v = Vec3::new(
+                direction_angle.cos() * 2.9,
+                direction_angle.sin() * 2.9,
+                0.0,
+            );
             player.velocity += new_v - Vec3::new(0.0, 0.4, 0.0);
         }
     }

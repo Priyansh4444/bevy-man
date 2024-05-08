@@ -1,5 +1,5 @@
 use bevy::{
-    ecs::{component::Component, entity::Entity},
+    ecs::{component::Component, entity::Entity, event::Event},
     math::Vec3,
 };
 
@@ -13,7 +13,6 @@ pub struct Player {
     pub velocity: Vec3,
     pub swinging: bool, // Flag to indicate if the player is currently swinging
     pub angular_velocity: f32, // Initial push when starting to swing
-    pub energy: f32, // Energy to swing
 }
 
 #[derive(Component)]
@@ -34,3 +33,9 @@ pub struct Rope {
     pub start: Vec3,
     pub end: Vec3,
 }
+
+#[derive(Component)]
+struct Collider;
+
+#[derive(Event, Default)]
+struct CollisionEvent;
