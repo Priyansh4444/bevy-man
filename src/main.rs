@@ -77,12 +77,12 @@ pub fn apply_gravity_and_motion(
     mut players: Query<(&mut Transform, &mut Player), With<Player>>,
     time: Res<Time>,
 ) {
-    for (mut transform, mut player) in players.iter_mut() {
+    if let Ok((mut transform, mut player)) = players.get_single_mut() {
         // Apply gravity to vertical velocity if the player is not attached to a ledge
         if !player.is_attatched_to_ledge {
             player.velocity.y += GRAVITY * time.delta_seconds();
             // Update the player's position based on the current velocity
-            transform.translation += player.velocity * time.delta_seconds();
+            transform.translation += player.velocity * time.delta_seconds() * 2.0;
         }
     }
 }
@@ -191,13 +191,13 @@ pub fn player_movement_moving(
             // * time.delta_seconds()
             // * 200.0;
             // I like this elastic variation ^^
-            transform.translation += (player.velocity) * time.delta_seconds();
+            transform.translation += (player.velocity) * time.delta_seconds() * 2.0;
             let new_v = Vec3::new(
                 direction_angle.cos() * 2.9,
                 direction_angle.sin() * 2.9,
                 0.0,
             );
-            player.velocity += new_v - Vec3::new(0.0, 0.4, 0.0);
+            player.velocity += new_v - Vec3::new(-0.2322, 0.4351, 0.0);
         }
     }
 }
